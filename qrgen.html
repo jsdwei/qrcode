@@ -3,29 +3,61 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>批量多行文本 → 二维码（离线可用）</title>
+<title>批量二维码（离线 · 颜色 · SVG · 分片 · 合成大图）</title>
 <style>
   * { box-sizing: border-box; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   body { background: #f1f5f9; margin: 0; min-height: 100vh; padding: 20px; }
-  .container { max-width: 1400px; margin: 0 auto; background: #fff; border-radius: 28px;
+  .container { max-width: 1500px; margin: 0 auto; background: #fff; border-radius: 28px;
     box-shadow: 0 20px 35px rgba(0,0,0,.1); padding: 30px 35px; }
-  h1 { font-size: 1.8rem; color: #0f172a; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; }
+  h1 { font-size: 1.8rem; color: #0f172a; margin: 0 0 8px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   h1 small { font-size: .95rem; font-weight: 400; color: #64748b; }
-  .subtitle { color: #475569; margin-bottom: 22px; border-left: 4px solid #3b82f6; padding-left: 14px; font-size: .95rem; }
+  .subtitle { color: #475569; margin-bottom: 22px; border-left: 4px solid #3b82f6; padding-left: 14px; font-size: .95rem; line-height: 1.6; }
+  .subtitle b { color: #0f172a; }
   .split-panel { display: flex; gap: 26px; flex-wrap: wrap; }
-  .input-area { flex: 1 1 380px; display: flex; flex-direction: column; gap: 14px; }
-  .input-area label { font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px; }
+  .input-area { flex: 1 1 420px; display: flex; flex-direction: column; gap: 14px; }
+  .input-area label { font-weight: 600; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .badge { background: #e2e8f0; border-radius: 30px; padding: 2px 10px; font-size: .75rem; color: #334155; }
   textarea { width: 100%; border: 2px solid #e2e8f0; border-radius: 18px; padding: 16px 18px;
-    font-size: .95rem; line-height: 1.6; resize: vertical; min-height: 240px; background: #f8fafc;
+    font-size: .95rem; line-height: 1.6; resize: vertical; min-height: 200px; background: #f8fafc;
     font-family: ui-monospace, Menlo, Consolas, monospace; }
   textarea:focus { outline: none; border-color: #3b82f6; background: #fff;
     box-shadow: 0 0 0 4px rgba(59,130,246,.15); }
-  .options { display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+  .live-stats { display: flex; gap: 10px; flex-wrap: wrap; font-size: .82rem; color: #475569; }
+  .live-stats span { background: #eef2f6; padding: 5px 12px; border-radius: 30px; }
+  .live-stats span b { color: #0f172a; }
+  .options { display: flex; flex-wrap: wrap; gap: 16px; align-items: center;
     background: #f1f5f9; padding: 12px 18px; border-radius: 20px; }
   .option-item { display: flex; align-items: center; gap: 8px; font-size: .9rem; color: #1e293b; }
-  .option-item input[type="number"] { width: 76px; padding: 7px 10px; border: 1px solid #cbd5e1;
+  .option-item input[type="number"] { width: 86px; padding: 7px 10px; border: 1px solid #cbd5e1;
     border-radius: 10px; font-size: .9rem; }
+  .option-item select { padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 10px; font-size: .9rem; background: #fff; }
+  .option-item input[type="checkbox"] { width: 16px; height: 16px; }
+
+  /* ★★★ 颜色选择区 ★★★ */
+  .color-block { background: #fff; border: 1px solid #e2e8f0; border-radius: 16px;
+    padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .color-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .color-row-label { font-size: .85rem; font-weight: 600; color: #1e293b;
+    min-width: 52px; }
+  .color-input-wrap { display: flex; align-items: center; gap: 6px;
+    background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 3px 8px 3px 3px; }
+  .color-input-wrap input[type="color"] { width: 34px; height: 28px; padding: 0;
+    border: none; border-radius: 8px; cursor: pointer; background: transparent; }
+  .color-input-wrap input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+  .color-input-wrap input[type="color"]::-webkit-color-swatch { border: none; border-radius: 6px; }
+  .color-input-wrap input[type="color"]::-moz-color-swatch { border: none; border-radius: 6px; }
+  .color-hex { font-size: .78rem; color: #475569; font-family: ui-monospace, monospace;
+    min-width: 62px; }
+  .preset-list { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .preset-list-label { font-size: .78rem; color: #64748b; }
+  .preset { width: 26px; height: 26px; border-radius: 7px; border: 2px solid #fff;
+    box-shadow: 0 0 0 1px #cbd5e1; cursor: pointer; padding: 0; transition: transform .1s, box-shadow .1s;
+    position: relative; }
+  .preset:hover { transform: scale(1.15); box-shadow: 0 0 0 2px #3b82f6; z-index: 2; }
+  .preset.active { box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px #dbeafe; }
+  .preset[data-color="#ffffff"] { box-shadow: 0 0 0 1px #cbd5e1, inset 0 0 0 1px #f1f5f9; }
+
   .button-group { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
   .btn { border: 1px solid #cbd5e1; background: #fff; padding: 11px 22px; border-radius: 40px;
     font-weight: 600; font-size: .9rem; cursor: pointer; display: inline-flex;
@@ -34,27 +66,43 @@
     box-shadow: 0 8px 16px -4px rgba(15,23,42,.2); }
   .btn-primary:hover { background: #1e293b; transform: translateY(-2px); }
   .btn-secondary:hover { background: #f8fafc; border-color: #94a3b8; }
+  .btn-accent { background: #7c3aed; border-color: #7c3aed; color: #fff; }
+  .btn-accent:hover { background: #6d28d9; transform: translateY(-2px); }
   .btn:disabled { opacity: .5; pointer-events: none; }
-  .output-area { flex: 2 1 600px; background: #f8fafc; border-radius: 24px; padding: 18px;
+  .output-area { flex: 2 1 620px; background: #f8fafc; border-radius: 24px; padding: 18px;
     border: 1px solid #e2e8f0; display: flex; flex-direction: column; min-height: 400px; }
   .output-header { display: flex; justify-content: space-between; align-items: center;
     padding: 0 8px 12px; border-bottom: 2px dashed #cbd5e1; margin-bottom: 14px; flex-wrap: wrap; gap: 10px; }
   .output-header h3 { margin: 0; color: #0f172a; font-size: 1.15rem; }
-  .qrcode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-    gap: 18px; overflow-y: auto; padding: 8px 4px 12px; flex: 1; max-height: 620px; }
+  .qrcode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap: 18px; overflow-y: auto; padding: 8px 4px 12px; flex: 1; max-height: 720px; }
   .qr-card { background: #fff; border-radius: 18px; box-shadow: 0 6px 14px rgba(0,0,0,.04);
     border: 1px solid #e9eef3; padding: 14px 10px 12px; display: flex; flex-direction: column;
     align-items: center; animation: fadeIn .25s ease; }
   .qr-card:hover { box-shadow: 0 12px 22px rgba(0,0,0,.09); border-color: #b9d0e8; }
-  .qr-card canvas { display: block; width: 100%; height: auto; max-width: 150px;
-    border-radius: 6px; background: #fff; margin-bottom: 8px; }
-  .qr-text-preview { font-size: .7rem; color: #475569; text-align: center; word-break: break-all;
-    max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    padding: 3px 8px; background: #f1f5f9; border-radius: 40px; width: 100%; margin-bottom: 6px; }
+  .qr-card.chunk { border-color: #fbbf24; background: #fffdf5; }
+  .qr-canvas-wrap { width: 100%; max-width: 180px; aspect-ratio: 1/1; background: #fff;
+    border-radius: 8px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center;
+    overflow: hidden; border: 1px solid #eef2f6; padding: 4px; }
+  .qr-canvas-wrap canvas { display: block; max-width: 100%; max-height: 100%;
+    image-rendering: pixelated; image-rendering: crisp-edges; }
+  .qr-meta { width: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .qr-text-preview { font-size: .72rem; color: #475569; text-align: center; word-break: break-all;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    padding: 4px 10px; background: #f1f5f9; border-radius: 40px; width: 100%; }
+  .qr-stats { display: flex; justify-content: space-between; gap: 6px; font-size: .68rem; color: #64748b; padding: 0 4px; flex-wrap: wrap; }
+  .qr-stats .ver { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 30px; font-weight: 600; }
+  .qr-stats .len { background: #f1f5f9; padding: 2px 8px; border-radius: 30px; }
+  .qr-stats .len.warn { background: #fef3c7; color: #92400e; }
+  .qr-stats .len.danger { background: #fee2e2; color: #991b1b; }
+  .qr-stats .chunk-tag { background: #fef3c7; color: #92400e; padding: 2px 8px; border-radius: 30px; font-weight: 600; }
+  .qr-actions { display: flex; gap: 6px; margin-top: 4px; width: 100%; }
   .qr-download { font-size: .7rem; background: #fff; border: 1px solid #cbd5e1;
-    padding: 4px 12px; border-radius: 30px; cursor: pointer; color: #1e293b;
-    display: flex; align-items: center; gap: 4px; transition: all .1s; }
+    padding: 5px 8px; border-radius: 30px; cursor: pointer; color: #1e293b;
+    display: flex; align-items: center; justify-content: center; gap: 3px;
+    transition: all .1s; flex: 1; }
   .qr-download:hover { background: #0f172a; border-color: #0f172a; color: #fff; }
+  .qr-download.svg:hover { background: #7c3aed; border-color: #7c3aed; }
   .empty-message { color: #94a3b8; font-size: .95rem; text-align: center; padding: 60px 20px;
     background: #fff; border-radius: 26px; grid-column: 1 / -1; display: flex;
     flex-direction: column; align-items: center; gap: 10px; border: 1px dashed #cbd5e1; }
@@ -65,33 +113,111 @@
   .qrcode-grid::-webkit-scrollbar-track { background: #e9eef3; border-radius: 10px; }
   .qrcode-grid::-webkit-scrollbar-thumb { background: #b9c9db; border-radius: 10px; }
   .footer-note { margin-top: 18px; text-align: center; color: #94a3b8; font-size: .8rem; }
+  .hint { font-size: .78rem; color: #64748b; padding: 8px 12px; background: #f8fafc;
+    border-left: 3px solid #3b82f6; border-radius: 6px; line-height: 1.6; }
+  .hint code { background: #e2e8f0; padding: 1px 6px; border-radius: 4px; font-size: .85em; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,.5); z-index: 1000;
+    display: none; align-items: center; justify-content: center; padding: 20px; }
+  .modal-mask.show { display: flex; }
+  .modal { background: #fff; border-radius: 20px; padding: 24px; max-width: 480px; width: 100%;
+    box-shadow: 0 30px 60px rgba(0,0,0,.25); }
+  .modal h3 { margin: 0 0 6px; color: #0f172a; }
+  .modal p { color: #64748b; font-size: .85rem; margin: 0 0 16px; }
+  .modal-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+  .modal-row label { font-size: .85rem; font-weight: 600; color: #1e293b; }
+  .modal-row input[type="text"], .modal-row input[type="number"] { padding: 10px 12px;
+    border: 1px solid #cbd5e1; border-radius: 10px; font-size: .9rem; }
+  .modal-row input:focus { outline: none; border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124,58,237,.15); }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 18px; }
 </style>
 </head>
 <body>
 <div class="container">
-  <h1>📦 批量多行文本 → 二维码 <small>离线可用 · 已验证</small></h1>
-  <div class="subtitle">✏️ 每行文本生成一个二维码，空行自动忽略。支持中文、网址、任意字符。</div>
+  <h1>📦 批量多行文本 → 二维码 <small>离线 · 颜色 · SVG · 分片 · 合成大图</small></h1>
+  <div class="subtitle">
+    ✏️ 每行文本生成一个二维码，空行自动忽略。支持中文、网址、任意字符。
+    <b>常用色块一键切换；支持 PNG / SVG 导出、合成一张大图。</b>
+  </div>
 
   <div class="split-panel">
     <div class="input-area">
       <label>📝 输入文本 <span class="badge">每行一个二维码</span></label>
       <textarea id="textInput" placeholder="例如：&#10;https://example.com&#10;Hello World&#10;这是一段中文文本&#10;最后一行"></textarea>
+
+      <div class="live-stats" id="liveStats">
+        <span>总行数 <b id="statLines">0</b></span>
+        <span>有效行 <b id="statValid">0</b></span>
+        <span>总字符 <b id="statChars">0</b></span>
+        <span>最长行 <b id="statMax">0</b> 字符</span>
+      </div>
+
       <div class="options">
         <div class="option-item">
           <label for="sizeInput">尺寸(px):</label>
-          <input type="number" id="sizeInput" value="240" min="120" max="600" step="20">
+          <input type="number" id="sizeInput" value="480" min="120" max="1200" step="20">
         </div>
         <div class="option-item">
-          <label for="marginInput">边距(模块):</label>
-          <input type="number" id="marginInput" value="2" min="0" max="10" step="1">
+          <label for="marginInput">边距:</label>
+          <input type="number" id="marginInput" value="4" min="0" max="10" step="1">
+        </div>
+        <div class="option-item">
+          <label for="eclSelect">纠错:</label>
+          <select id="eclSelect">
+            <option value="1" selected>L (最大)</option>
+            <option value="0">M</option>
+            <option value="3">Q</option>
+            <option value="2">H</option>
+          </select>
+        </div>
+        <div class="option-item">
+          <label>
+            <input type="checkbox" id="autoChunk" checked>
+            分片
+          </label>
         </div>
       </div>
-      <div class="button-group">
-        <button class="btn btn-primary" id="generateBtn">⚡ 批量生成二维码</button>
-        <button class="btn btn-secondary" id="clearBtn">🧹 清空</button>
-        <button class="btn btn-secondary" id="downloadAllBtn" disabled>⬇️ 下载全部</button>
+
+      <!-- ★★★ 颜色选择区（方案 B：常用色块 + 自定义） ★★★ -->
+      <div class="color-block">
+        <div class="color-row">
+          <span class="color-row-label">前景色</span>
+          <div class="color-input-wrap">
+            <input type="color" id="fgColor" value="#0f172a">
+            <span class="color-hex" id="fgHex">#0f172a</span>
+          </div>
+          <div class="preset-list" id="fgPresets">
+            <span class="preset-list-label">常用：</span>
+            <!-- 由 JS 动态生成 -->
+          </div>
+        </div>
+        <div class="color-row">
+          <span class="color-row-label">背景色</span>
+          <div class="color-input-wrap">
+            <input type="color" id="bgColor" value="#ffffff">
+            <span class="color-hex" id="bgHex">#ffffff</span>
+          </div>
+          <div class="preset-list" id="bgPresets">
+            <span class="preset-list-label">常用：</span>
+            <!-- 由 JS 动态生成 -->
+          </div>
+        </div>
       </div>
-      <div style="font-size:.8rem;color:#64748b;">💡 点击单个二维码下的下载按钮可单独保存 PNG · 生成后请用手机扫码验证</div>
+
+      <div class="button-group">
+        <button class="btn btn-primary" id="generateBtn">⚡ 批量生成</button>
+        <button class="btn btn-secondary" id="clearBtn">🧹 清空</button>
+        <button class="btn btn-secondary" id="downloadAllBtn" disabled>⬇️ PNG</button>
+        <button class="btn btn-secondary" id="downloadAllSvgBtn" disabled>⬇️ SVG</button>
+        <button class="btn btn-accent" id="exportBigBtn" disabled>🖼️ 合成大图</button>
+      </div>
+
+      <div class="hint">
+        💡 <b>颜色</b>：点色块快速应用，或点左侧小方块打开系统调色板自定义。修改后自动重新生成。<br>
+        💡 注意 <code>深色前景 + 浅色背景</code> 才能被扫码识别；浅色前景通常无法识别。<br>
+        💡 <b>合成大图</b>：把所有二维码拼成一张 PNG，带标题和参数信息，可另存为 PDF 打印。<br>
+        💡 <b>SVG</b>：矢量格式，无限放大清晰，适合打印与 AI/PS 排版。
+      </div>
     </div>
 
     <div class="output-area">
@@ -107,17 +233,35 @@
   <div class="footer-note">⚡ 纯本地生成 · 无网络请求 · 数据不会离开浏览器</div>
 </div>
 
+<!-- 合成大图弹窗 -->
+<div class="modal-mask" id="exportModal">
+  <div class="modal">
+    <h3>🖼️ 合成大图设置</h3>
+    <p>把所有二维码拼成一张 PNG 图片</p>
+    <div class="modal-row">
+      <label for="exportTitle">标题（可留空）</label>
+      <input type="text" id="exportTitle" placeholder="例如：产品二维码汇总">
+    </div>
+    <div class="modal-row">
+      <label for="exportCols">每行显示数量</label>
+      <input type="number" id="exportCols" value="4" min="1" max="10">
+    </div>
+    <div class="modal-row">
+      <label for="exportScale">分辨率倍数（2 倍最清晰）</label>
+      <input type="number" id="exportScale" value="2" min="1" max="4" step="1">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="exportCancelBtn">取消</button>
+      <button class="btn btn-accent" id="exportConfirmBtn">生成并下载</button>
+    </div>
+  </div>
+</div>
+
 <!-- ============================================================
-     内联的 QRCode 库（基于 davidshimjs/qrcodejs, MIT License）
-     这是一个被广泛使用、久经考验的版本，直接嵌入可确保离线可用。
+     内联 QRCode 库
      ============================================================ -->
 <script>
-/**
- * QRCode for JavaScript (c) 2012 davidshimjs, Licensed under MIT.
- * 精简整合版，保留核心绘制与 UTF-8 支持。
- */
 var QRCode = (function () {
-  // ---------- QR Math ----------
   var QRMath = (function () {
     var EXP_TABLE = new Array(256), LOG_TABLE = new Array(256);
     for (var i = 0; i < 8; i++) EXP_TABLE[i] = 1 << i;
@@ -157,7 +301,6 @@ var QRCode = (function () {
     }
   };
 
-  // ---------- RS Block ----------
   function QRRSBlock(totalCount, dataCount) { this.totalCount = totalCount; this.dataCount = dataCount; }
   QRRSBlock.RS_BLOCK_TABLE = [
     [1,26,19],[1,26,16],[1,26,13],[1,26,9],
@@ -222,7 +365,6 @@ var QRCode = (function () {
     }
   };
 
-  // ---------- BitBuffer ----------
   function QRBitBuffer() { this.buffer = []; this.length = 0; }
   QRBitBuffer.prototype = {
     get: function (index) { var bufIndex = Math.floor(index / 8); return ((this.buffer[bufIndex] >>> (7 - index % 8)) & 1) == 1; },
@@ -236,7 +378,6 @@ var QRCode = (function () {
     }
   };
 
-  // ---------- 核心二维码数据 ----------
   var QRCodeLimitLength = [
     [17,14,11,7],[32,26,20,14],[53,42,32,24],[78,62,46,34],[106,84,60,44],
     [134,106,74,58],[154,122,86,64],[192,152,108,84],[230,180,130,98],[271,213,151,119],
@@ -399,7 +540,6 @@ var QRCode = (function () {
     return data;
   };
 
-  // ---------- QRUtil ----------
   var QRUtil = (function () {
     var PATTERN_POSITION_TABLE = [
       [],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],
@@ -466,7 +606,6 @@ var QRCode = (function () {
     };
   })();
 
-  // ---------- 对外暴露 ----------
   function QRCodeObject(el, options) {
     this._htOption = { width: 256, height: 256, colorDark: "#000000", colorLight: "#ffffff", correctLevel: 2 };
     for (var i in options) this._htOption[i] = options[i];
@@ -526,6 +665,7 @@ var QRCode = (function () {
   }
   function _getUTF8Length(sText) { var replacedText = encodeURI(sText).toString().replace(/\%[0-9a-fA-F]{2}/g, 'a'); return replacedText.length + (replacedText.length != sText ? 3 : 0); }
 
+  QRCodeObject.CorrectLevel = { L: 1, M: 0, Q: 3, H: 2 };
   return QRCodeObject;
 })();
 </script>
@@ -536,58 +676,235 @@ var QRCode = (function () {
   const textarea = document.getElementById('textInput');
   const sizeInput = document.getElementById('sizeInput');
   const marginInput = document.getElementById('marginInput');
+  const eclSelect = document.getElementById('eclSelect');
+  const fgColor = document.getElementById('fgColor');
+  const bgColor = document.getElementById('bgColor');
+  const fgHex = document.getElementById('fgHex');
+  const bgHex = document.getElementById('bgHex');
+  const autoChunk = document.getElementById('autoChunk');
   const generateBtn = document.getElementById('generateBtn');
   const clearBtn = document.getElementById('clearBtn');
   const downloadAllBtn = document.getElementById('downloadAllBtn');
+  const downloadAllSvgBtn = document.getElementById('downloadAllSvgBtn');
+  const exportBigBtn = document.getElementById('exportBigBtn');
   const qrcodeGrid = document.getElementById('qrcodeGrid');
   const statsDisplay = document.getElementById('statsDisplay');
 
+  const statLines = document.getElementById('statLines');
+  const statValid = document.getElementById('statValid');
+  const statChars = document.getElementById('statChars');
+  const statMax = document.getElementById('statMax');
+
+  const exportModal = document.getElementById('exportModal');
+  const exportTitle = document.getElementById('exportTitle');
+  const exportCols = document.getElementById('exportCols');
+  const exportScale = document.getElementById('exportScale');
+  const exportConfirmBtn = document.getElementById('exportConfirmBtn');
+  const exportCancelBtn = document.getElementById('exportCancelBtn');
+
   let currentQrItems = [];
+
+  // ★★★ 常用色预设 ★★★
+  // 前景色：深色，扫码安全
+  const FG_PRESETS = [
+    { color: '#0f172a', name: '深黑蓝（默认）' },
+    { color: '#000000', name: '纯黑' },
+    { color: '#1e3a8a', name: '商务深蓝' },
+    { color: '#0f766e', name: '科技深青' },
+    { color: '#5b21b6', name: '优雅深紫' },
+    { color: '#991b1b', name: '品牌深红' },
+    { color: '#166534', name: '清新深绿' },
+    { color: '#9a3412', name: '暖橙' },
+    { color: '#1f2937', name: '中性深灰' },
+    { color: '#86198f', name: '品红' }
+  ];
+  // 背景色：浅色
+  const BG_PRESETS = [
+    { color: '#ffffff', name: '纯白（默认）' },
+    { color: '#f9fafb', name: '极浅灰' },
+    { color: '#fffbeb', name: '暖米黄' },
+    { color: '#f0fdf4', name: '淡薄荷' },
+    { color: '#eff6ff', name: '淡天蓝' },
+    { color: '#f5f3ff', name: '淡紫' },
+    { color: '#fdf2f8', name: '淡粉' },
+    { color: '#fefce8', name: '淡黄' }
+  ];
+
+  const MAX_BYTES = { 1: 2303, 0: 1809, 3: 1283, 2: 982 };
 
   function parseLines(text) {
     return text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
   }
+
+  function utf8ByteLength(str) {
+    let bytes = 0;
+    for (let i = 0; i < str.length; i++) {
+      const code = str.charCodeAt(i);
+      if (code < 0x80) bytes += 1;
+      else if (code < 0x800) bytes += 2;
+      else if (code >= 0xD800 && code <= 0xDBFF) { bytes += 4; i++; }
+      else bytes += 3;
+    }
+    return bytes;
+  }
+
+  function splitByByteLimit(text, maxBytes) {
+    const chunks = [];
+    let current = '';
+    let currentBytes = 0;
+    for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
+      const chBytes = utf8ByteLength(ch);
+      if (currentBytes + chBytes > maxBytes && current.length > 0) {
+        chunks.push(current);
+        current = ch;
+        currentBytes = chBytes;
+      } else {
+        current += ch;
+        currentBytes += chBytes;
+      }
+    }
+    if (current.length > 0) chunks.push(current);
+    return chunks;
+  }
+
+  function updateLiveStats() {
+    const text = textarea.value;
+    const allLines = text.split(/\r?\n/);
+    const validLines = allLines.map(l => l.trim()).filter(l => l.length > 0);
+    const totalChars = validLines.reduce((s, l) => s + l.length, 0);
+    const maxLen = validLines.reduce((m, l) => Math.max(m, l.length), 0);
+
+    statLines.textContent = allLines.length;
+    statValid.textContent = validLines.length;
+    statChars.textContent = totalChars;
+    statMax.textContent = maxLen;
+  }
+
   function resetGrid() {
     qrcodeGrid.innerHTML = '';
     currentQrItems = [];
     downloadAllBtn.disabled = true;
+    downloadAllSvgBtn.disabled = true;
+    exportBigBtn.disabled = true;
     statsDisplay.textContent = '0 个二维码';
   }
   function showEmptyMessage(message = '还没有生成二维码<br>在左侧输入文本后点击"批量生成"', emoji = '🔲') {
     qrcodeGrid.innerHTML = `<div class="empty-message"><span>${emoji}</span>${message}</div>`;
   }
-  function downloadCanvasAsPng(canvas, filename) {
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.download = filename;
-    link.href = canvas.toDataURL('image/png');
+    link.href = url;
     link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+  function downloadCanvasAsPng(canvas, filename) {
+    canvas.toBlob(blob => { if (blob) downloadBlob(blob, filename); }, 'image/png');
+  }
+  function downloadSvgText(svgText, filename) {
+    const blob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+    downloadBlob(blob, filename);
   }
   function makeFilename(text, index) {
-    let base = text.slice(0, 24).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
+    let base = text.slice(0, 20).replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_');
     if (!base) base = 'qrcode';
-    return `${base}_${index + 1}.png`;
+    return `${base}_${index + 1}`;
   }
 
-  // 使用内联 QRCode 生成一个 canvas
-  function createQRCanvas(text, size, margin) {
+  function buildQRMatrix(text, ecl) {
     const container = document.createElement('div');
-    new QRCode(container, {
-      text: text,
-      width: size,
-      height: size,
-      colorDark: "#0f172a",
-      colorLight: "#ffffff",
-      correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.M : 2
+    const qr = new QRCode(container, {
+      text: text, width: 100, height: 100,
+      colorDark: "#000000", colorLight: "#ffffff",
+      correctLevel: ecl
     });
-    // 库会把 canvas 放进 container
-    const canvas = container.querySelector('canvas');
-    if (!canvas) throw new Error('二维码生成失败');
-    // 复制 canvas 到独立画布，方便后续调整与下载
+    return {
+      modules: qr._oQRCode.modules,
+      moduleCount: qr._oQRCode.getModuleCount(),
+      version: qr._oQRCode.typeNumber
+    };
+  }
+
+  function matrixToCanvas(matrix, moduleCount, displaySize, margin, fg, bg) {
+    const totalModules = moduleCount + margin * 2;
+    const modulePx = Math.max(4, Math.ceil(displaySize / totalModules));
+    const actualSize = modulePx * totalModules;
+
     const out = document.createElement('canvas');
-    out.width = canvas.width;
-    out.height = canvas.height;
-    out.getContext('2d').drawImage(canvas, 0, 0);
+    out.width = actualSize;
+    out.height = actualSize;
+    out.style.width = displaySize + 'px';
+    out.style.height = displaySize + 'px';
+    out.style.imageRendering = 'pixelated';
+
+    const ctx = out.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, actualSize, actualSize);
+    ctx.fillStyle = fg;
+    for (let r = 0; r < moduleCount; r++) {
+      for (let c = 0; c < moduleCount; c++) {
+        if (matrix[r][c]) {
+          ctx.fillRect((c + margin) * modulePx, (r + margin) * modulePx, modulePx, modulePx);
+        }
+      }
+    }
     return out;
+  }
+
+  function matrixToSvg(matrix, moduleCount, margin, fg, bg) {
+    const totalModules = moduleCount + margin * 2;
+    let path = '';
+    for (let r = 0; r < moduleCount; r++) {
+      for (let c = 0; c < moduleCount; c++) {
+        if (matrix[r][c]) path += `M${c + margin},${r + margin}h1v1h-1z`;
+      }
+    }
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${totalModules} ${totalModules}" width="${totalModules * 20}" height="${totalModules * 20}" shape-rendering="crispEdges">
+  <rect width="${totalModules}" height="${totalModules}" fill="${bg}"/>
+  <path d="${path}" fill="${fg}"/>
+</svg>`;
+  }
+
+  // ★★★ 渲染常用色块 ★★★
+  function renderPresets(containerId, presets, targetInput, hexEl) {
+    const container = document.getElementById(containerId);
+    // 保留原有的"常用："标签
+    const label = container.querySelector('.preset-list-label');
+    // 清掉旧按钮
+    container.querySelectorAll('.preset').forEach(el => el.remove());
+
+    presets.forEach(p => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'preset';
+      btn.style.background = p.color;
+      btn.dataset.color = p.color;
+      btn.title = `${p.name} (${p.color})`;
+      btn.addEventListener('click', () => {
+        targetInput.value = p.color;
+        hexEl.textContent = p.color.toLowerCase();
+        updateActivePreset(containerId, p.color);
+        if (parseLines(textarea.value).length > 0) generateBtn.click();
+      });
+      container.appendChild(btn);
+    });
+
+    // 初始化激活状态
+    updateActivePreset(containerId, targetInput.value);
+  }
+
+  function updateActivePreset(containerId, color) {
+    const container = document.getElementById(containerId);
+    container.querySelectorAll('.preset').forEach(el => {
+      if (el.dataset.color.toLowerCase() === color.toLowerCase()) {
+        el.classList.add('active');
+      } else {
+        el.classList.remove('active');
+      }
+    });
   }
 
   function generateAllQrCodes() {
@@ -599,94 +916,347 @@ var QRCode = (function () {
       showEmptyMessage('输入内容为空，请填写文本', '📭');
       statsDisplay.textContent = '0 个二维码';
       downloadAllBtn.disabled = true;
+      downloadAllSvgBtn.disabled = true;
+      exportBigBtn.disabled = true;
       return;
     }
 
-    let size = parseInt(sizeInput.value, 10);
-    if (isNaN(size) || size < 120) size = 240;
-    if (size > 600) size = 600;
+    let displaySize = parseInt(sizeInput.value, 10);
+    if (isNaN(displaySize) || displaySize < 120) displaySize = 480;
+    if (displaySize > 1200) displaySize = 1200;
+
+    let margin = parseInt(marginInput.value, 10);
+    if (isNaN(margin) || margin < 0) margin = 4;
+    if (margin > 10) margin = 10;
+
+    const ecl = parseInt(eclSelect.value, 10) || 1;
+    const maxBytes = MAX_BYTES[ecl] || 2303;
+    const safeLimit = Math.floor(maxBytes * 0.95);
+    const doChunk = autoChunk.checked;
+
+    const fg = fgColor.value;
+    const bg = bgColor.value;
 
     const fragment = document.createDocumentFragment();
+    let totalCards = 0;
 
     for (let i = 0; i < lines.length; i++) {
-      const text = lines[i];
-      let canvas;
-      try {
-        canvas = createQRCanvas(text, size, 0);
-      } catch (err) {
-        console.error('生成失败:', text, err);
-        canvas = document.createElement('canvas');
-        canvas.width = 240; canvas.height = 240;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#fee2e2'; ctx.fillRect(0, 0, 240, 240);
-        ctx.fillStyle = '#b91c1c'; ctx.font = 'bold 14px sans-serif';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('生成失败', 120, 100);
-        ctx.font = '11px sans-serif';
-        ctx.fillText(err.message.slice(0, 24), 120, 130);
+      const originalText = lines[i];
+      const originalByteCount = utf8ByteLength(originalText);
+
+      let chunks;
+      if (doChunk && originalByteCount > safeLimit) {
+        chunks = splitByByteLimit(originalText, safeLimit);
+      } else {
+        chunks = [originalText];
       }
+      const isChunked = chunks.length > 1;
 
-      const card = document.createElement('div');
-      card.className = 'qr-card';
+      for (let ci = 0; ci < chunks.length; ci++) {
+        const text = chunks[ci];
+        const charCount = text.length;
+        const byteCount = utf8ByteLength(text);
 
-      // 让 canvas 显示尺寸自适应但保持最大 150px
-      canvas.style.width = '100%';
-      canvas.style.height = 'auto';
-      canvas.style.maxWidth = '150px';
-      canvas.style.display = 'block';
-      canvas.style.marginBottom = '8px';
+        let canvas = null, svg = null, version = '-';
+        try {
+          const m = buildQRMatrix(text, ecl);
+          canvas = matrixToCanvas(m.modules, m.moduleCount, displaySize, margin, fg, bg);
+          svg = matrixToSvg(m.modules, m.moduleCount, margin, fg, bg);
+          version = m.version;
+        } catch (err) {
+          console.error('生成失败:', text, err);
+          canvas = document.createElement('canvas');
+          canvas.width = 240; canvas.height = 240;
+          const ctx = canvas.getContext('2d');
+          ctx.fillStyle = '#fee2e2'; ctx.fillRect(0, 0, 240, 240);
+          ctx.fillStyle = '#b91c1c'; ctx.font = 'bold 14px sans-serif';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('生成失败', 120, 100);
+        }
 
-      const previewDiv = document.createElement('div');
-      previewDiv.className = 'qr-text-preview';
-      previewDiv.textContent = text;
-      previewDiv.title = text;
+        const card = document.createElement('div');
+        card.className = 'qr-card' + (isChunked ? ' chunk' : '');
 
-      const downloadBtn = document.createElement('button');
-      downloadBtn.className = 'qr-download';
-      downloadBtn.innerHTML = '⬇️ 下载';
-      downloadBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        downloadCanvasAsPng(canvas, makeFilename(text, i));
-      });
+        const wrap = document.createElement('div');
+        wrap.className = 'qr-canvas-wrap';
+        wrap.appendChild(canvas);
 
-      card.appendChild(canvas);
-      card.appendChild(previewDiv);
-      card.appendChild(downloadBtn);
-      fragment.appendChild(card);
-      currentQrItems.push({ canvas, text });
+        const meta = document.createElement('div');
+        meta.className = 'qr-meta';
+
+        const previewDiv = document.createElement('div');
+        previewDiv.className = 'qr-text-preview';
+        previewDiv.textContent = (isChunked ? `[${ci + 1}/${chunks.length}] ` : '') + text;
+        previewDiv.title = previewDiv.textContent;
+
+        const statsRow = document.createElement('div');
+        statsRow.className = 'qr-stats';
+
+        const verSpan = document.createElement('span');
+        verSpan.className = 'ver';
+        verSpan.textContent = version === '-' ? 'V?' : 'V' + version;
+
+        const lenSpan = document.createElement('span');
+        lenSpan.className = 'len';
+        lenSpan.textContent = `${charCount} 字符 / ${byteCount} 字节`;
+        if (byteCount > maxBytes) lenSpan.classList.add('danger');
+        else if (byteCount > maxBytes * 0.85) lenSpan.classList.add('warn');
+
+        statsRow.appendChild(verSpan);
+        if (isChunked) {
+          const tag = document.createElement('span');
+          tag.className = 'chunk-tag';
+          tag.textContent = `${ci + 1}/${chunks.length}`;
+          statsRow.appendChild(tag);
+        }
+        statsRow.appendChild(lenSpan);
+
+        const actions = document.createElement('div');
+        actions.className = 'qr-actions';
+
+        const pngBtn = document.createElement('button');
+        pngBtn.className = 'qr-download';
+        pngBtn.innerHTML = '⬇️ PNG';
+        pngBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const base = makeFilename(text, i);
+          const suffix = isChunked ? `_p${ci + 1}of${chunks.length}` : '';
+          downloadCanvasAsPng(canvas, `${base}${suffix}.png`);
+        });
+
+        const svgBtn = document.createElement('button');
+        svgBtn.className = 'qr-download svg';
+        svgBtn.innerHTML = '⬇️ SVG';
+        if (svg) {
+          svgBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const base = makeFilename(text, i);
+            const suffix = isChunked ? `_p${ci + 1}of${chunks.length}` : '';
+            downloadSvgText(svg, `${base}${suffix}.svg`);
+          });
+        } else {
+          svgBtn.disabled = true;
+        }
+
+        actions.appendChild(pngBtn);
+        actions.appendChild(svgBtn);
+
+        meta.appendChild(previewDiv);
+        meta.appendChild(statsRow);
+        meta.appendChild(actions);
+
+        card.appendChild(wrap);
+        card.appendChild(meta);
+        fragment.appendChild(card);
+
+        currentQrItems.push({
+          canvas, svg, text, version,
+          charCount, byteCount,
+          isChunked, chunkIndex: ci + 1, chunkTotal: chunks.length,
+          originalIndex: i
+        });
+        totalCards++;
+      }
     }
 
     qrcodeGrid.appendChild(fragment);
-    const count = currentQrItems.length;
-    statsDisplay.textContent = `${count} 个二维码`;
-    downloadAllBtn.disabled = count === 0;
+    statsDisplay.textContent = `${totalCards} 个二维码`;
+    downloadAllBtn.disabled = totalCards === 0;
+    downloadAllSvgBtn.disabled = totalCards === 0;
+    exportBigBtn.disabled = totalCards === 0;
   }
 
-  function downloadAll() {
+  function downloadAllPng() {
     if (currentQrItems.length === 0) return;
     currentQrItems.forEach((item, idx) => {
-      setTimeout(() => downloadCanvasAsPng(item.canvas, makeFilename(item.text, idx)), idx * 150);
+      setTimeout(() => {
+        downloadCanvasAsPng(item.canvas, makeFilename(item.text, idx) + '.png');
+      }, idx * 150);
     });
+  }
+
+  function downloadAllSvg() {
+    if (currentQrItems.length === 0) return;
+    let i = 0;
+    currentQrItems.forEach((item) => {
+      if (!item.svg) return;
+      const delay = i * 150;
+      i++;
+      setTimeout(() => downloadSvgText(item.svg, makeFilename(item.text, i) + '.svg'), delay);
+    });
+  }
+
+  function exportBigImage(title, cols, scale) {
+    if (currentQrItems.length === 0) return;
+
+    const count = currentQrItems.length;
+    const actualCols = Math.min(cols, count);
+    const rows = Math.ceil(count / actualCols);
+
+    const baseSize = parseInt(sizeInput.value, 10) || 480;
+    const cellQrSize = baseSize;
+    const cellPadding = 24;
+    const cellWidth = cellQrSize + cellPadding * 2;
+    const textAreaHeight = 70;
+    const cellHeight = cellQrSize + cellPadding * 2 + textAreaHeight;
+    const gap = 24;
+
+    const titleHeight = title ? 100 : 0;
+    const headerHeight = 80;
+
+    const totalWidth = (cellWidth + gap) * actualCols + gap;
+    const totalHeight = titleHeight + headerHeight + (cellHeight + gap) * rows + gap + 60;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = totalWidth * scale;
+    canvas.height = totalHeight * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(0, 0, totalWidth, totalHeight);
+
+    let cursorY = 0;
+    if (title) {
+      ctx.fillStyle = '#0f172a';
+      ctx.font = 'bold 36px system-ui, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(title, totalWidth / 2, titleHeight / 2 + 10);
+      cursorY += titleHeight;
+    }
+
+    const now = new Date();
+    const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const eclLabel = { 1: 'L', 0: 'M', 3: 'Q', 2: 'H' }[parseInt(eclSelect.value, 10)] || 'L';
+    const infoText = `共 ${count} 个二维码 · 纠错级别 ${eclLabel} · 前景 ${fgColor.value} · 背景 ${bgColor.value} · 生成于 ${dateStr}`;
+    ctx.fillStyle = '#64748b';
+    ctx.font = '15px system-ui, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(infoText, totalWidth / 2, cursorY + headerHeight / 2);
+    cursorY += headerHeight;
+
+    for (let idx = 0; idx < count; idx++) {
+      const item = currentQrItems[idx];
+      const row = Math.floor(idx / actualCols);
+      const col = idx % actualCols;
+      const x = gap + col * (cellWidth + gap);
+      const y = cursorY + gap + row * (cellHeight + gap);
+
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x, y, cellWidth, cellHeight);
+      ctx.strokeStyle = item.isChunked ? '#fbbf24' : '#e9eef3';
+      ctx.lineWidth = item.isChunked ? 2 : 1;
+      ctx.strokeRect(x + 0.5, y + 0.5, cellWidth - 1, cellHeight - 1);
+
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(item.canvas, x + cellPadding, y + cellPadding, cellQrSize, cellQrSize);
+
+      ctx.fillStyle = '#475569';
+      ctx.font = '13px system-ui, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      const previewText = (item.isChunked ? `[${item.chunkIndex}/${item.chunkTotal}] ` : '') + item.text;
+      const truncated = previewText.length > 28 ? previewText.slice(0, 27) + '…' : previewText;
+      const textY = y + cellPadding + cellQrSize + 20;
+      ctx.fillText(truncated, x + cellWidth / 2, textY);
+
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px system-ui, "Segoe UI", Roboto, sans-serif';
+      const statsLine = `V${item.version} · ${item.charCount}字 / ${item.byteCount}字节` + (item.isChunked ? ` · ${item.chunkIndex}/${item.chunkTotal}` : '');
+      ctx.fillText(statsLine, x + cellWidth / 2, textY + 24);
+    }
+
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '12px system-ui, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('由「批量二维码生成器」生成 · 纯本地处理 · 数据不外传', totalWidth / 2, totalHeight - 30);
+
+    canvas.toBlob(blob => {
+      if (blob) {
+        const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
+        downloadBlob(blob, `qrcodes_${count}_${ts}.png`);
+      }
+    }, 'image/png');
   }
 
   function clearAll() {
     textarea.value = '';
     resetGrid();
     showEmptyMessage();
+    updateLiveStats();
   }
 
+  textarea.addEventListener('input', updateLiveStats);
   generateBtn.addEventListener('click', () => {
     try { generateAllQrCodes(); }
     catch (e) { console.error(e); showEmptyMessage('生成出错：' + e.message, '⚠️'); }
   });
   clearBtn.addEventListener('click', clearAll);
-  downloadAllBtn.addEventListener('click', downloadAll);
+  downloadAllBtn.addEventListener('click', downloadAllPng);
+  downloadAllSvgBtn.addEventListener('click', downloadAllSvg);
+
+  exportBigBtn.addEventListener('click', () => {
+    if (currentQrItems.length === 0) return;
+    exportModal.classList.add('show');
+    exportTitle.focus();
+  });
+  exportCancelBtn.addEventListener('click', () => {
+    exportModal.classList.remove('show');
+  });
+  exportModal.addEventListener('click', (e) => {
+    if (e.target === exportModal) exportModal.classList.remove('show');
+  });
+  exportConfirmBtn.addEventListener('click', () => {
+    const title = exportTitle.value.trim();
+    let cols = parseInt(exportCols.value, 10);
+    if (isNaN(cols) || cols < 1) cols = 4;
+    if (cols > 10) cols = 10;
+    let scale = parseInt(exportScale.value, 10);
+    if (isNaN(scale) || scale < 1) scale = 2;
+    if (scale > 4) scale = 4;
+
+    try {
+      exportBigImage(title, cols, scale);
+      exportModal.classList.remove('show');
+    } catch (err) {
+      console.error('合成失败:', err);
+      alert('合成失败：' + err.message);
+    }
+  });
+
   textarea.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); generateBtn.click(); }
   });
+  [sizeInput, marginInput, eclSelect, autoChunk].forEach(el => {
+    el.addEventListener('change', () => {
+      if (parseLines(textarea.value).length > 0) generateBtn.click();
+    });
+  });
+
+  // 颜色输入变化时更新 HEX 显示和预设高亮
+  fgColor.addEventListener('input', () => {
+    fgHex.textContent = fgColor.value.toLowerCase();
+    updateActivePreset('fgPresets', fgColor.value);
+    if (parseLines(textarea.value).length > 0) generateBtn.click();
+  });
+  bgColor.addEventListener('input', () => {
+    bgHex.textContent = bgColor.value.toLowerCase();
+    updateActivePreset('bgPresets', bgColor.value);
+    if (parseLines(textarea.value).length > 0) generateBtn.click();
+  });
+
+  // 初始化：渲染预设色块
+  renderPresets('fgPresets', FG_PRESETS, fgColor, fgHex);
+  renderPresets('bgPresets', BG_PRESETS, bgColor, bgHex);
 
   window.addEventListener('load', () => {
-    textarea.value = `https://www.example.com\nHello 二维码\n多行文本批量生成\n最后一行数据`;
+    const longLine = 'A'.repeat(2500);
+    textarea.value = `https://www.example.com\nHello 二维码\n多行文本批量生成\n${longLine}\n最后一行数据`;
+    updateLiveStats();
     setTimeout(() => generateBtn.click(), 100);
   });
 })();
